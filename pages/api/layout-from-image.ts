@@ -23,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           content: [
             {
               type: 'text',
-              text: `This is a UI screenshot. Return a JSON array of frames and text nodes with coordinates, sizes, and content, suitable to be recreated in Figma. Use "frame" and "text" as types.`
+              text: `This is a UI screenshot. Return a clean JSON array of layout blocks with frame and text types. Use only valid double quotes and make sure it's JSON.parse safe.`
             },
             {
               type: 'image_url',
@@ -37,11 +37,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       max_tokens: 1000,
     });
 
-    const layout = gptRes.choices?.[0]?.message?.content;
-    const parsed = JSON.parse(layout!);
-    return res.status(200).json(parsed);
+    const raw = gptRes.choices?.[0]?.message?.content;
+    console.log("GPT raw response:", raw);
+
+    try {
+      const cleaned = raw?.replace(/[“”]/g, '"');
+      const layout = JSON.parse(cleaned!);
+      return res.status(200).json(layout);
+    } catch (err) {
+      console.error("JSON parse error:", err);
+      return res.status(500).json({ error: 'Invalid JSON from OpenAI' });
+    }
+
   } catch (err) {
-    console.error(err);
+    console.error("OpenAI error:", err);
     return res.status(500).json({ error: 'Failed to process image' });
   }
 }
