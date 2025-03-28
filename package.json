@@ -11,5 +11,10 @@
     "react": "latest",
     "react-dom": "latest",
     "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/react": "^18.2.14",
+    "@types/node": "^20.10.6"
   }
 }
