@@ -4,9 +4,14 @@ import OpenAI from 'openai';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(200).end();
   }
+
+  res.setHeader('Access-Control-Allow-Origin', '*');
 
   const { imageDataURL } = req.body;
 
@@ -38,19 +43,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const raw = gptRes.choices?.[0]?.message?.content;
-    console.log("GPT raw response:", raw);
+    const cleaned = raw?.replace(/[“”]/g, '"');
+    const layout = JSON.parse(cleaned!);
 
-    try {
-      const cleaned = raw?.replace(/[“”]/g, '"');
-      const layout = JSON.parse(cleaned!);
-      return res.status(200).json(layout);
-    } catch (err) {
-      console.error("JSON parse error:", err);
-      return res.status(500).json({ error: 'Invalid JSON from OpenAI' });
-    }
-
+    return res.status(200).json(layout);
   } catch (err) {
-    console.error("OpenAI error:", err);
+    console.error("OpenAI/CORS error:", err);
     return res.status(500).json({ error: 'Failed to process image' });
   }
 }
