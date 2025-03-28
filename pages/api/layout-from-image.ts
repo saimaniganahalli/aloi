@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // ✅ Handle CORS preflight
+  // CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -12,7 +12,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).end();
   }
 
-  // ✅ Allow origin for POST requests too
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method !== 'POST') {
@@ -34,7 +33,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           content: [
             {
               type: 'text',
-              text: `You're a layout parser. Convert this screenshot into a JSON array of layout elements. Use only valid JSON — no explanation, just a parseable array.`
+              text: `You're a layout parser. Convert this screenshot into a JSON array of layout elements.
+Only return clean JSON (valid for JSON.parse), and do not include any explanation or commentary.`
             },
             {
               type: 'image_url',
@@ -49,15 +49,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const raw = gptRes.choices?.[0]?.message?.content;
-    console.log("GPT raw response:", raw);
+    console.log("🧠 GPT raw response:", raw);
 
     const cleaned = raw?.replace(/[“”]/g, '"');
-    const layout = JSON.parse(cleaned!);
+    let layout;
+    try {
+      layout = JSON.parse(cleaned!);
+    } catch (err) {
+      console.error("🛑 Failed to parse OpenAI response:", err);
+      console.error("🔍 Raw content:", raw);
+      return res.status(500).json({ error: 'Invalid JSON from OpenAI.' });
+    }
+
+    if (!Array.isArray(layout)) {
+      console.error("🛑 Parsed layout is not an array:", layout);
+      return res.status(500).json({ error: 'Layout must be an array.' });
+    }
 
     return res.status(200).json(layout);
   } catch (err) {
-    console.error("Layout from image failed:", err);
+    console.error("💥 General error in layout-from-image:", err);
     return res.status(500).json({ error: 'Failed to process image' });
   }
 }
-
